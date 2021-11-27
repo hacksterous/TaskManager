@@ -14,6 +14,8 @@ import time
 import wx.adv
 #import wx.lib.inspection
 
+_daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
 _months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
 			'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
@@ -22,16 +24,22 @@ _MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 
 _WMYs = {'Weeks': 'w', 'Months': 'm', 'Years': 'y'}
 
-_wmy = ['w', 'm', 'y']
+_my = ['m', 'y']
+_wmy = ['d', 'w', 'm', 'y']
 
 _days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-_weekdays = {'Monday': 'mon', 'Tuesday': 'tue', 'Wednesday': 'wed', 
-				'Thursday': 'thu', 'Friday': 'fri', 'Saturday': 'sat', 'Sunday': 'sun'}
+_weekdays = { 'Sunday': 'sun', 'Monday': 'mon', 'Tuesday': 'tue', 'Wednesday': 'wed', 
+				'Thursday': 'thu', 'Friday': 'fri', 'Saturday': 'sat'}
 
-_wds = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+_wds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
-_WMY = {'Week': 'w', 'Month': 'm', 'Year': 'y'}
+_WMY = {'Day': 'd', 'Week': 'w', 'Month': 'm', 'Year': 'y'}
+
+#_myMYMap = {'m': 'Month', 'y': 'Year'}
+
+def _getZoneHour():
+	return abs(time.timezone/3600)
 
 def _makeDateForTodo (asctime):
 	#print ("_makeDateForTodo: asctime = ", asctime)
@@ -41,13 +49,17 @@ def _makeDateForTodo (asctime):
 		#print (match.group(1), " ", match.group(2), " ", match.group(3))
 		dd = match.group(2)
 		mm = str(_months.index(match.group(1).lower()) + 1)
+		if len(mm) == 1:
+			mm = '0'+mm
+		if len(dd) == 1:
+			dd = '0'+dd
 		yyyy = match.group(3)
 		return yyyy+'-'+mm+'-'+dd
 	else:
 		return None
 
 def _makeDateForSystem (dd, mm, yyyy, zoneHour):
-	day = _days[day(dd, mm, yyyy, zoneHour)]
+	day = _days[_day(dd, mm, yyyy, zoneHour)]
 	month = _MONTHS[mm-1]
 	date = str(dd)
 	if dd < 10:
@@ -83,8 +95,8 @@ def _timeScaleAtMidnight (todoDate, zoneHour=5.5):
 	
 	return d - zoneHour/24.0 #add 2451543.5 to get Julian Date
 
-def _day (todoDate, zoneHour):
-	d = _timeScaleAtMidnight(todoDate, zoneHour=5.5)
+def _day (todoDate, zoneHour=5.5):
+	d = _timeScaleAtMidnight(todoDate, zoneHour)
 	d += (zoneHour/24.0)
 	index = int((d+5)%7)
 	return index
@@ -99,9 +111,234 @@ def _firstTodoDateIsEarlier (tdA, tdB):
 	#returns True is tdA is earlier than tdB
 	return _dateDifference (tdA, tdB) < 0
 
-def _nextDate(todoDate, recurrenceCount, recurrenceUnit, 
-						recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit):
-	return todoDate
+def _isLeapYear (year):
+	if year % 400 == 0:
+		return True
+	elif year % 100 == 0:
+		return False
+	elif year % 4 == 0:
+		return True
+	else:
+		return False
+
+def _resolveRecurrenceType2 (todoDate, 
+				recurrenceType2Nth = '', 
+				recurrenceType2Day = '', 
+				recurrenceType2Unit = ''):
+
+	#print ("******* _resolveRecurrenceType2: ", todoDate, recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+	nextDate = todoDate
+	match = re.match(r'^([0-9]{4})\-([0-9]{2})\-([0-9]{2})', todoDate)
+	if match:
+		yyyy = match.group(1)
+		mm = match.group(2)
+		dd = match.group(3)
+
+	if recurrenceType2Unit == 'm':
+		#what was the day for the first of the todoDate month
+		print (" date of first day = ", yyyy+'-'+mm+'-01')
+		firstDayIndex = _day(yyyy+'-'+mm+'-01', _getZoneHour())
+		print (" %%% todoDate = ", todoDate)
+		
+		whichDayIndex = _wds.index(recurrenceType2Day)
+
+		diff = whichDayIndex - firstDayIndex
+		if diff < 0:
+			diff += 7
+
+		dateOf1stOccurrence = 1 + diff
+		daysInMonth = _daysInMonths[int(mm)-1] 
+
+		print (" %%% whichDayIndex = ", whichDayIndex)
+		print (" %%% firstDayIndex = ", firstDayIndex)
+		print (" %%% diff = ", diff)
+		print (" %%% daysInMonth = ", daysInMonth)
+		print (" %%% todoDate = ", todoDate, " Day 1 falls on ", _wds[firstDayIndex])
+		print (" %%% dateOf1stOccurrence = ", dateOf1stOccurrence, " we are looking for ", recurrenceType2Nth, "th ", recurrenceType2Day)
+
+		if recurrenceType2Nth in 'lL':
+			nthDay = 4
+			if daysInMonth == 29:
+				#the day of 1st of this month will repeat 5 times
+				if whichDayIndex == firstDayIndex:
+					nthDay = 5
+			elif daysInMonth == 30:
+				#the day of 1st and 2nd of this month will repeat 5 times
+				if whichDayIndex in (firstDayIndex, firstDayIndex+1):
+					nthDay = 5
+			elif daysInMonth == 31:
+				#the day of 1st, 2nd and 3rd of this month will repeat 5 times
+				if whichDayIndex in (firstDayIndex, firstDayIndex+1, firstDayIndex+2):
+					nthDay = 5
+			else:
+				# 28 days. All days of the week will occur 4 times
+				nthDay = 4
+		else:
+			#print ("#### recurrenceType2Nth = ", recurrenceType2Nth)
+			nthDay = int(recurrenceType2Nth)
+
+		date = (nthDay - 1) * 7 + dateOf1stOccurrence
+		if date > _daysInMonths[int(mm) - 1]:
+			print ("ERROR in nextDueDate")
+		else:
+			nextDate = yyyy+'-'+mm+'-'+(str(date) if date > 9 else '0'+str(date))
+		#print ("_resolveRecurrenceType2 %%% A. nextDate = ", nextDate)
+
+	elif recurrenceType2Unit == 'y':
+		print (" %%% recurrenceType2Unit = ", recurrenceType2Unit)
+		print (" date of first day of the year = ", yyyy+'-01-01')
+		firstDayIndex = _day(yyyy+'-01-01', _getZoneHour())
+		
+		whichDayIndex = _wds.index(recurrenceType2Day)
+
+		diff = whichDayIndex - firstDayIndex
+		if diff < 0:
+			diff += 7
+
+		dateOf1stOccurrence = 1 + diff
+		daysInMonth = _daysInMonths[int(mm)-1] 
+
+		if recurrenceType2Nth in 'lL':
+			nthDay = 52
+			if _isLeapYear (int(yyyy)):
+				#in a leap year, 365th and 366th days will have 53 occurrences
+				if whichDayIndex in (firstDayIndex, firstDayIndex+1):
+					nthDay = 53
+			else:
+				if whichDayIndex == firstDayIndex:
+					nthDay = 53
+				else:
+					nthDay = 52
+		else:
+			#print ("#### recurrenceType2Nth = ", recurrenceType2Nth)
+			nthDay = int(recurrenceType2Nth)
+
+		date = (nthDay - 1) * 7 + dateOf1stOccurrence
+		if date > _daysInMonths[int(mm) - 1]:
+			print ("ERROR in nextDueDate")
+		else:
+			nextDate = yyyy+'-'+mm+'-'+(str(date) if date > 9 else '0'+str(date))
+		#print ("_resolveRecurrenceType2 %%% A. nextDate = ", nextDate)
+
+	print ("_resolveRecurrenceType2 %%% returning with nextDate = ", nextDate)
+	print()
+	print()
+	return nextDate
+
+def _nextDate(todoDate, recurrenceCount = '', 
+				recurrenceUnit = '',
+				recurrenceType2Nth = '', 
+				recurrenceType2Day = '', 
+				recurrenceType2Unit = ''):
+
+	#print ("===========")
+	nextDate = todoDate
+	match = re.match(r'^([0-9]{4})\-([0-9]{2})\-([0-9]{2})', todoDate)
+	if match:
+		yyyy = match.group(1)
+		mm = match.group(2)
+		dd = match.group(3)
+
+	#print ("recurrenceUnit = ", recurrenceUnit)
+	if recurrenceUnit == 'm':
+		newmm = (int(mm) - 1 + int(recurrenceCount))
+		yyyyInt = int(yyyy) + newmm//12
+		newmm = newmm % 12 + 1
+		newmmStr = str(newmm)
+		if newmm < 10:
+			newmmStr = '0' + newmmStr
+		yyyy = str(yyyyInt)
+		ddInt = int(dd)
+		if not _isLeapYear (yyyyInt) and newmm == 2 and ddInt >= 29:
+			dd = '28'
+		elif ddInt > _daysInMonths[newmm - 1]:
+			dd = str(_daysInMonths[newmm - 1])
+		if len(dd) == 1:
+			dd = '0'+dd
+		#print ("newmm = ", newmm)
+		#print ("yyyyInt = ", yyyyInt)
+		nextDate = yyyy+'-'+newmmStr+'-'+dd
+	elif recurrenceUnit == 'd':
+		i = int(mm) - 1
+		newdd = (int(dd) + int(recurrenceCount))
+		cumuDays = 0
+		monthCount = 0
+		_daysInMonthsLocal = []
+		y = int(yyyy)
+		for e in _daysInMonths:
+			_daysInMonthsLocal.append(e)
+		if i >= 2:
+			#current month is March or later, will spill into next year's Feb
+			#find out if next year is leap
+			if _isLeapYear (y+1):
+				_daysInMonthsLocal[1] = 29
+		else:
+			#current month is Jan or Feb, find out if current year is leap
+			if _isLeapYear (y):
+				_daysInMonthsLocal[1] = 29
+		for e in (_daysInMonthsLocal[i:] + _daysInMonthsLocal[0:i]):
+			newdd -= e
+			if newdd <= 0:
+				newdd += e
+				break 
+			monthCount += 1
+		dd = str(newdd)
+		if i+monthCount >= 12:
+			yyyy = str(y+1)
+
+		newmmStr = str(((i+monthCount) % 12) + 1)
+		nextDate = yyyy+'-'+newmmStr+'-'+dd
+
+	elif recurrenceUnit == 'y':
+		recurrenceCountInt = int(recurrenceCount)
+		newyyyy = int(yyyy) + recurrenceCountInt
+		if int(mm) == 2 and dd == '29':
+			if not _isLeapYear(newyyyy):
+				#current date is on a leap year and
+				#recurrence occurs on a non-leap year 
+				dd = '28'
+		nextDate = str(newyyyy)+'-'+mm+'-'+dd
+
+	elif recurrenceType2Unit == 'm':
+		#set todoDate to first of next month and
+		#resolve date
+		if int(mm) + 1 > 12:
+			mm = '01'
+			yyyy = str(int(yyyy) + 1)
+		
+		nextDate = _resolveRecurrenceType2 (yyyy+'-'+mm+'-01', recurrenceType2Nth, 
+					recurrenceType2Day, recurrenceType2Unit)
+
+	print ("_nextDate %%% returning with nextDate = ", nextDate)
+	print ("===========")
+	return nextDate
+
+def _validate (date):
+	dd = mm = yyyy = 0
+	match = re.match(r'^([0-9]{4})\-([0-9]{1,2})\-([0-9]{1,2})', date)
+	if date == '':
+		#null date
+		return True
+	
+	if match:
+		yyyy = int(match.group(1))
+		mm = int(match.group(2))
+		dd = int(match.group(3))
+	if mm < 1 or mm > 12:
+		#print (date, " failed A !! mm = ", mm)
+		return False
+	
+	if dd > _daysInMonths[mm-1]:
+		if _isLeapYear (yyyy) and mm == 2:
+			if dd > 29:
+				return False
+				#print (date, " failed B !!")
+		else:
+			return False
+			#print (date, " failed C !!")
+
+
+	return True
 
 class todo ():
 
@@ -148,6 +385,7 @@ class todo ():
 			elif line.find('#') == 0:
 				self.comments.append(line)
 				continue
+			print ("At end of parsing #: line = ", line)
 		
 			#extract all contexts starting with ' +'
 			line += ' ' #the regex won't work without the extra space at end
@@ -189,11 +427,16 @@ class todo ():
 					dd = '0'+dd
 				dueDate = yyyy + '-' + mm + '-' + dd
 		
-			match = re.match(r'^.*rec:([0-9]{1,})([w|m|y])', line)
+			match = re.match(r'^.*rec:([0-9]{,})([d|w|m|y])', line)
 			if match:
 				recurrenceCount = match.group(1)
+				if recurrenceCount == '': #'rec:m' is same as 'rec:1m'
+					recurrenceCount = '1'
 				recurrenceUnit = match.group(2)
 				#print ("recurrenceCount match found for line ", line)
+				if recurrenceUnit == 'd':
+					if int(recurrenceCount) > 365:
+						hasError = True
 		
 			match = re.match(r'^.*rec:([1-4|l|L]{1})\-(mon|tue|wed|thu|fri|sat|sun)\-(m|y)', line)
 			if match:
@@ -207,7 +450,7 @@ class todo ():
 				#print ("recurrenceType2 match found for line ", line)
 				#print (recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 		
-			if completed == True:
+			if completed == True or allCompleted == True:
 				match = re.match(r'^([0-9]{4}\-[0-9]{1,2}\-[0-9]{1,2})?\s+(\([A-Z]\))?\s+([0-9]{4}\-[0-9]{1,2}\-[0-9]{1,2})?\s(.*)', line)
 				if match:
 					completionDate = match.group(1)
@@ -231,13 +474,14 @@ class todo ():
 						priority = match.group(1)
 					creationDate = match.group(2)
 					line = match.group(3)
+					#print ("X. completed = ", completed, " priority matched is ", priority, " for line ", line, "creationDate = ", creationDate)
 				else:
 					match = re.match(r'^([0-9]{4}\-[0-9]{1,}\-[0-9]{1,})?\s*(.*)', line)
 					if match:
 						creationDate = match.group(1)
 						line = match.group(2)
 					
-				#print ("Z. completed = ", completed, " priority matched is ", priority, " for line ", line, "creationDate = ", creationDate)
+						#print ("Y. completed = ", completed, " priority matched is ", priority, " for line ", line, "creationDate = ", creationDate)
 		
 			#print ("=========\t\tnow line is ", line)
 			match = re.match (r'(.*) due|rec', line)
@@ -252,7 +496,7 @@ class todo ():
 		
 			match = re.match(r'^([0-9]{4})\-([0-9]{1,})\-([0-9]{1,})', completionDate)
 			if match:
-				yyyy, mm, dd = match.group(3), match.group(2), match.group(1)
+				yyyy, mm, dd = match.group(1), match.group(2), match.group(3)
 				if len(mm) == 1:
 					mm = '0'+mm
 				if len(dd) == 1:
@@ -261,18 +505,27 @@ class todo ():
 
 			match = re.match(r'^([0-9]{4})\-([0-9]{1,})\-([0-9]{1,})', creationDate)
 			if match:
-				yyyy, mm, dd = match.group(3), match.group(2), match.group(1)
+				yyyy, mm, dd = match.group(1), match.group(2), match.group(3)
 				if len(mm) == 1:
 					mm = '0'+mm
 				if len(dd) == 1:
 					dd = '0'+dd
 				creationDate = yyyy + '-' + mm + '-' + dd
+				#print ("Z. completed = ", completed, " priority matched is ", priority, " for line ", line, "creationDate = ", creationDate)
 
-			if completionDate == '' and completed == True or\
-				completionDate != '' and completed == False:
+			if completionDate == '' and (completed == True or allCompleted == True) or\
+				completionDate != '' and (completed == False and allCompleted == False):
 				#print ("completion error")
 				hasError = True
+
 		
+			#print ("dueDate ", dueDate, " is good ", _validate(dueDate))
+			#print ("completionDate ", completionDate, " is good ", _validate(completionDate))
+			#print ("creationDate ", creationDate, " is good ", _validate(creationDate))
+			if not _validate(dueDate) or not _validate(completionDate) or not _validate(creationDate):
+				hasError = True
+			#print ("creationDate ", creationDate, " validation returned ", _validate(creationDate))
+
 			match = re.match(r'^([0-9]{4}\-[0-9]{1,}\-[0-9]{1,})', task)
 			if match:
 				#print ("task check error with task = ", task)
@@ -295,7 +548,7 @@ class todo ():
 			self.todoTasksTask[task] = (hasError, completed, completionDate, allCompleted, priority, creationDate, dueDate,
 										recurrenceCount, recurrenceUnit, recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit,
 										contexts, projects)
-				
+
 			#print ("class todo: task = ", task, " length = ", len(task))
 			#print ("\thasError = ", hasError)
 			#print ("\tcompleted =", completed)
@@ -358,7 +611,7 @@ class editTaskDialog (wx.Dialog):
 		recurrenceTypeList = ['None', 'Span', 'Day', 'Last day']
 		recurSpanUnitList = ['Weeks', 'Months', 'Years']
 		recurDayUnitList = ['Month', 'Year']
-		recurDayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+		recurDayList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 		
 		mainSizer = wx.GridBagSizer(vgap=10, hgap=10)
 
@@ -381,7 +634,7 @@ class editTaskDialog (wx.Dialog):
 		self.noDueDateCheckBox.Bind(wx.EVT_CHECKBOX, self.noDueDateCheckBoxHandler)		
 		self.noDueDateCheckBox.SetValue(False)
 
-		dueDatePickerLabel = wx.StaticText(self, label="Due Date")
+		self.dueDatePickerLabel = wx.StaticText(self, label="Due Date")
 		self.datePicker = wx.adv.DatePickerCtrl(self, size=(150,-1),
 								style = wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY | wx.adv.DP_ALLOWNONE)
 
@@ -408,7 +661,7 @@ class editTaskDialog (wx.Dialog):
 		self.recurDayNumber = wx.TextCtrl(self, value='1', size=(40, -1))
 		self.recurDayNumber.Bind (wx.EVT_KEY_UP, self.recurDayNumberHandler)
 		self.recurDayNumAdjectiveText = wx.StaticText(self, label='st')
-		self.recurDay = wx.ComboBox(self, -1, 'Monday', choices=recurDayList, style=wx.CB_READONLY)
+		self.recurDay = wx.ComboBox(self, -1, 'Sunday', choices=recurDayList, style=wx.CB_READONLY)
 		self.recurDayText = wx.StaticText(self, label='of every')
 		self.recurDayUnit = wx.ComboBox(self, -1, 'Month', choices=recurDayUnitList, style=wx.CB_READONLY)
 		self.recurDayNumber.Disable()
@@ -479,7 +732,7 @@ class editTaskDialog (wx.Dialog):
 		noDueDateCheckBoxSizer.Add(self.noDueDateCheckBox)
 
 		dueDateSizer = wx.BoxSizer(wx.HORIZONTAL)
-		dueDateSizer.Add(dueDatePickerLabel, flag=wx.ALIGN_CENTER_VERTICAL)
+		dueDateSizer.Add(self.dueDatePickerLabel, flag=wx.ALIGN_CENTER_VERTICAL)
 		dueDateSizer.AddSpacer(10)
 		dueDateSizer.Add(self.datePicker)
 		leftMiddleSizer.AddSpacer(15)
@@ -520,16 +773,16 @@ class editTaskDialog (wx.Dialog):
 		mainSizer.Add(bottomSizer, pos=(5, 0), flag=wx.BOTTOM|wx.LEFT, border=0)
 
 		if todoTasksTask != '':
-			#print ("showEditTasksDialog", todoTasksDetails)
 			(hasError, completed, completionDate, allCompleted, 
 			priority, creationDate, dueDate,
 			recurrenceCount, recurrenceUnit, 
 			recurrenceType2Nth, recurrenceType2Day, 
 			recurrenceType2Unit, contexts, projects) = todoTasksDetails
-			print ("%% edit tasks dialog - hasError", hasError)
-			print ("%% edit tasks dialog - recurrenceCount", recurrenceCount)
-			print ("%% edit tasks dialog - recurrenceCount == ''", recurrenceCount=='')
-			print ("%% edit tasks dialog - recurrenceType2Nth", recurrenceType2Nth)
+			#print ("%% edit tasks dialog - hasError", hasError)
+			#print ("%% edit tasks dialog - recurrenceCount", recurrenceCount)
+			#print ("%% edit tasks dialog - recurrenceCount == ''", recurrenceCount=='')
+			#print ("%% edit tasks dialog - recurrenceType2Nth", recurrenceType2Nth)
+			#print ("%% edit tasks dialog - recurrenceType2Unit", recurrenceType2Unit)
 			if hasError == False:
 				self.taskText.WriteText(todoTasksTask)
 
@@ -567,12 +820,17 @@ class editTaskDialog (wx.Dialog):
 						self.recurDayNumber.WriteText(recurrenceType2Nth)
 						self.recurDayNumberHandler()
 					self.recurDay.SetSelection(_wds.index(recurrenceType2Day))
-					self.recurDayUnit.SetSelection(_wmy.index(recurrenceType2Unit)-1)
+					#print ("******** Setting self.recurDayUnit.SetSelection", _wmy.index(recurrenceType2Unit), _wmy)
+					self.recurDayUnit.SetSelection(_my.index(recurrenceType2Unit))
+					#print ("self.recurDayUnit.GetStringSelection()=", self.recurDayUnit.GetStringSelection())
+					#print ("self.recurDayUnit.GetSelection()=", self.recurDayUnit.GetSelection())
+					#print ("self.recurDayUnit.GetCurrentSelection()=", self.recurDayUnit.GetCurrentSelection())
 
 		self.SetSizer(mainSizer)
 
 	def noDueDateCheckBoxHandler(self, event=None):
-		if self.noDueDateCheckBox.IsChecked():
+		recurrenceRadioBoxSelection = self.recurrenceRadioBox.GetSelection()
+		if self.noDueDateCheckBox.IsChecked() or recurrenceRadioBoxSelection > 1:
 			self.datePicker.Disable()
 		else:
 			self.datePicker.Enable()
@@ -607,7 +865,8 @@ class editTaskDialog (wx.Dialog):
 			except:
 				count = -1
 			#print ("count = ", count, "self.recurDayNumber.GetLineText(0) = ", self.recurDayNumber.GetLineText(0))
-			if count < 1 or count > 4:
+			if (count < 1 or count > 4) and self.recurDayUnit.GetStringSelection() == 'Month' or\
+					(count < 1 or count > 52)  and self.recurDayUnit.GetStringSelection() == 'Year':
 				errMsg = "Bad day!"
 				errorInUserInputs = True
 
@@ -653,9 +912,6 @@ class editTaskDialog (wx.Dialog):
 		contexts, projects = self.getTags()
 
 		if goodValidation == True: #no error seen
-			#get the fields
-			#dd, mm, yyyy = _makeDateForTodo(time.asctime())
-			#today = str(yyyy) + '-' + str(mm) + '-' + str(dd)
 			today = _makeDateForTodo(time.asctime())
 			#print ("self.recurSpanUnit.GetStringSelection()=", self.recurSpanUnit.GetStringSelection())
 			#print ("self.recurDay.GetStringSelection()=", self.recurDay.GetStringSelection())
@@ -669,6 +925,7 @@ class editTaskDialog (wx.Dialog):
 			elif recurrenceSelection > 1:
 				recurrenceType2Nth = self.recurDayNumber.GetLineText(0).strip()
 				recurrenceType2Day = _weekdays[self.recurDay.GetStringSelection()]
+				#print ("^^^^^^^ self.recurDayUnit.GetStringSelection() = ", self.recurDayUnit.GetStringSelection())
 				recurrenceType2Unit = _WMY[self.recurDayUnit.GetStringSelection()]
 			if recurrenceSelection == 3:
 				recurrenceType2Nth = 'L'
@@ -681,8 +938,6 @@ class editTaskDialog (wx.Dialog):
 			if self.noDueDateCheckBox.IsChecked():
 				dueDate = ''
 			else:
-				#dd, mm, yyyy = _makeDateForTodo(str(self.datePicker.GetValue()))
-				#dueDate = str(yyyy) + '-' + str(mm) + '-' + str(dd)
 				dueDate = _makeDateForTodo(str(self.datePicker.GetValue()))
 			self.parent.newtodoTasksTask[task] = (False, False, '', False, priority, today, dueDate,
 				recurrenceCount, recurrenceUnit,
@@ -703,6 +958,8 @@ class editTaskDialog (wx.Dialog):
 	def recurrenceRadioBoxHandler(self, event=None):
 		selection = self.recurrenceRadioBox.GetSelection()
 		#print ("recurrence type is #", selection)
+		self.dueDatePickerLabel.Enable()
+		self.datePicker.Enable()
 		self.recurDayNumber.Show()
 		self.recurLastDayText.Hide()
 		self.recurDayNumAdjectiveText.Hide()
@@ -725,6 +982,8 @@ class editTaskDialog (wx.Dialog):
 			self.recurDayText.Disable()
 			self.recurDayUnit.Disable()
 		elif selection == 2:
+			self.dueDatePickerLabel.Disable()
+			self.datePicker.Disable()
 			self.recurDetailsLabel.Enable()
 			self.recurSpanText.Disable()
 			self.recurSpanCount.Disable()
@@ -737,6 +996,8 @@ class editTaskDialog (wx.Dialog):
 			self.recurDayUnit.Enable()
 			self.Layout()
 		elif selection == 3:
+			self.dueDatePickerLabel.Disable()
+			self.datePicker.Disable()
 			self.recurDetailsLabel.Enable()
 			self.recurSpanText.Disable()
 			self.recurSpanCount.Disable()
@@ -940,10 +1201,12 @@ class taskManager(wx.Frame):
 				recurrenceCount, recurrenceUnit, 
 				recurrenceType2Nth, recurrenceType2Day, 
 				recurrenceType2Unit, contexts, projects) = self.todoTasksTask[task]
-			if hasError == False and (self.showCompletedTasksCheckBox.IsChecked() or not completed):
-				print ("%%% getitem count = ", self.taskList.GetItemCount())
+
+			#print (" %%% Task: ", task, " hasError = ", hasError, " showCompletedTasksCheckBox - check is ", self.showCompletedTasksCheckBox.IsChecked())
+			if hasError == False and (self.showCompletedTasksCheckBox.IsChecked() or not (completed or allCompleted)):
+				#print ("%%% getitem count = ", self.taskList.GetItemCount())
 				#index = self.taskList.InsertItem(self.taskList.GetItemCount(), dueDate.strip())
-				print ("index is now ", index)
+				#print ("index is now ", index)
 				showTask = True
 				if skipTagsRedraw == True and (self.selectedProjects != [] or self.selectedContexts != []):
 					showTask = False
@@ -960,65 +1223,102 @@ class taskManager(wx.Frame):
 				if showTask == True:
 					dueDate = dueDate.strip()
 					nextDueDate = '?'
+					completionStatus = '#'
 					isRecurring = recurrenceCount != '' or recurrenceType2Nth != ''
+
+					today = _makeDateForTodo(time.asctime())
+					if recurrenceType2Unit != '':
+						#task occurs on nth x-day of every month/year
+						#replace dueDate with calculated day
+
+						#use original due date or today's date, whichever is later
+						#for calculation
+						if _firstTodoDateIsEarlier(dueDate, today):
+							dueDate = today
+						
+						dueDate = _resolveRecurrenceType2 (dueDate,
+									recurrenceType2Nth, 
+									recurrenceType2Day, 
+									recurrenceType2Unit)
+
 					hasDueDate = dueDate != ''
 
 					if hasDueDate:
-						todayIsPastDueDate = _firstTodoDateIsEarlier(dueDate, _makeDateForTodo(time.asctime()))
-						dueDateLessThan1MonthToGo = (_dateDifference(dueDate, _makeDateForTodo(time.asctime())) <= 30) and not todayIsPastDueDate
+						#print ("=== hasDueDate ~~~ dueDate = ", dueDate)
+						todayIsPastDueDate = _firstTodoDateIsEarlier(dueDate, today)
+						howSoonIsSoon = -1
+						if recurrenceUnit == 'm' or recurrenceType2Unit == 'm': 
+							howSoonIsSoon = 7
+						elif recurrenceUnit == 'y' or recurrenceType2Unit == 'y': 
+							howSoonIsSoon = 30
+						elif recurrenceUnit == 'w' or recurrenceType2Unit == 'w': 
+							howSoonIsSoon = 2
+						dueDateComingSoon = (_dateDifference(dueDate, _makeDateForTodo(time.asctime())) <= howSoonIsSoon) and not todayIsPastDueDate
 					else:
 						todayIsPastDueDate = False
-						dueDateLessThan1MonthToGo = False
+						dueDateComingSoon = False
 
-					print ("------", task, "------")
-					print ("dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
-					print ("todayIsPastDueDate = ", todayIsPastDueDate, "dueDateLessThan1MonthToGo = ", dueDateLessThan1MonthToGo)
+					#print ("------", task, "------")
+					#print ("dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
+					diff = _dateDifference(dueDate, _makeDateForTodo(time.asctime()))
+					#print ("todayIsPastDueDate = ", todayIsPastDueDate, "dueDateComingSoon = ", dueDateComingSoon, " diff = ", diff)
+
 					if not hasDueDate and not completed:
 						completionStatus = 'Active'
-						print ('%%%% Active')
+						#print ('%%%% Active')
 						nextDueDate = '-'
 					elif not hasDueDate and completed:
 						completionStatus = 'Done'
-						print ('%%%% 1 Done')
+						#print ('%%%% 1 Done')
 						nextDueDate = '-'
 					elif not isRecurring and hasDueDate and completed:
 						completionStatus = 'Done'
-						print ('%%%% 2 Done')
+						#print ('%%%% 2 Done')
 						nextDueDate = '-'
-					elif isRecurring and hasDueDate and completed and not dueDateLessThan1MonthToGo and not allCompleted:
+					elif isRecurring and hasDueDate and completed and not dueDateComingSoon and not allCompleted:
 						completionStatus = 'Done'
-						print ('%%%% 3 Done')
+						#print ('%%%% 3 Done')
 						nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 							recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 					elif isRecurring and hasDueDate and allCompleted:
 						completionStatus = 'Done'
-						print ('%%%% 4 Done')
-						dueDate = '-'
+						#print ('%%%% 4 Done')
+						#dueDate = '-'
 						nextDueDate = '-'
-					elif isRecurring and hasDueDate and dueDateLessThan1MonthToGo and not allCompleted and completed:
-						completionStatus = 'Coming up'
-						print ('%%%% Coming up')
-					elif isRecurring and hasDueDate and not completed and not dueDateLessThan1MonthToGo and not allCompleted:
+					elif isRecurring and hasDueDate and not completed and not dueDateComingSoon and not allCompleted and todayIsPastDueDate:
 						completionStatus = 'Missed last'
-						print ('%%%% Missed last')
-						dueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
-							recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+						#print ('%%%% Missed last')
+						#print ('%%%% dueDateComingSoon = ', dueDateComingSoon)
 						nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 							recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
-					elif not isRecurring and hasDueDate and not completed:
-						completionStatus = 'Overdue'
-						print ('%%%% Overdue')
-						nextDueDate = _makeDateForTodo(time.asctime())
-					elif not isRecurring and hasDueDate and not completed:
-						completionStatus = 'To do'
-						print ('%%%% 1 To do')
+					elif isRecurring and hasDueDate and not dueDateComingSoon and not allCompleted:
+						completionStatus = 'Scheduled'
+						#print ('%%%% 1 Coming up')
+						nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
+							recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+					elif isRecurring and hasDueDate and dueDateComingSoon and not allCompleted:
+						completionStatus = 'Coming up'
+						#print ('%%%% 2 Coming up')
 						nextDueDate = dueDate
-					elif not isRecurring and hasDueDate and not completed and not dueDateLessThan1MonthToGo and not allCompleted:
+					elif not isRecurring and hasDueDate and not completed and todayIsPastDueDate:
+						completionStatus = 'Overdue'
+						#print ('%%%% Overdue')
+						nextDueDate = _makeDateForTodo(time.asctime())
+					elif not isRecurring and hasDueDate and not completed and not todayIsPastDueDate:
 						completionStatus = 'To do'
-						print ('%%%% 2 To do')
+						#print ('%%%% 2 To do')
+						nextDueDate = dueDate
+					elif not isRecurring and hasDueDate and not completed and not dueDateComingSoon and not todayIsPastDueDate:
+						completionStatus = 'To do'
+						#print ('%%%% 3 To do')
 						nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 							recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
-					
+					elif not isRecurring and hasDueDate and not completed and dueDateComingSoon and not todayIsPastDueDate:
+						completionStatus = 'Coming up'
+						#print ('%%%% 2 Coming up')
+						nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
+							recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+					#print ("Final -- dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
 			
 					self.taskList.InsertItem(index, dueDate)
 					self.taskList.SetItem(index, 1, task.strip())
@@ -1055,24 +1355,24 @@ class taskManager(wx.Frame):
 	def projectListBoxHandler (self, event=None):
 		self.selectedProjects = []
 		ss = self.projectList.GetSelections()
-		print ("projectList seletion indices - ", ss)
+		#print ("projectList seletion indices - ", ss)
 		for s in ss:
 			project = self.projectList.GetString(s)
 			self.selectedProjects.append(project[1:])
-			print ("selected project - ", project[1:])
+			#print ("selected project - ", project[1:])
 
-		print ("selectedProjects - ", self.selectedProjects)
+		#print ("selectedProjects - ", self.selectedProjects)
 		self.populateTasks(skipTagsRedraw=True)
 
 	def contextListBoxHandler (self, event=None):
 		self.selectedContexts = []
 		ss = self.contextList.GetSelections()
-		print ("contextList seletion indices - ", ss)
+		#print ("contextList seletion indices - ", ss)
 		for s in ss:
 			context = self.contextList.GetString(s)
 			self.selectedContexts.append(context[1:])
-			print ("selected context - ", context[1:])
-		print ("selectedContexts - ", self.selectedContexts)
+			#print ("selected context - ", context[1:])
+		#print ("selectedContexts - ", self.selectedContexts)
 		self.populateTasks(skipTagsRedraw=True)
 
 	def taskSelectedHandler (self, event=None):
@@ -1081,8 +1381,8 @@ class taskManager(wx.Frame):
 		self.selectedTask = self.taskList.GetItemText(index, 1)
 		*others, contexts, projects = self.todoTasksTask[self.selectedTask]
 		#print(self.selectedTask)
-		print ("selected projects ", projects)
-		print ("selected contexts ", contexts)
+		#print ("selected projects ", projects)
+		#print ("selected contexts ", contexts)
 		for e in range(0, self.projectList.GetCount()):
 			self.projectList.Deselect(e)
 
@@ -1152,10 +1452,10 @@ class taskManager(wx.Frame):
 		else:
 			self.todoFile = os.path.expanduser('./todotest.txt')
 		
-		print ("1. taskManager: init - self.todoFile = ", self.todoFile)
+		#print ("1. taskManager: init - self.todoFile = ", self.todoFile)
 		self.todo = todo(self.todoFile)
 
-		print ("self.todo.fileError = ", self.todo.fileError)
+		#print ("self.todo.fileError = ", self.todo.fileError)
 		if self.todo.fileError == False:
 			self.dirName = os.path.dirname(self.todoFile)
 			self.fileName = os.path.basename(self.todoFile)
@@ -1189,7 +1489,6 @@ class taskManager(wx.Frame):
 		print ("\trecurrenceType2Nth =", recurrenceType2Nth)
 		print ("\trecurrenceType2Day =", recurrenceType2Day)
 		print ("\trecurrenceType2Unit  =", recurrenceType2Unit)
-		
 
 		task = task.strip()
 		text = priority + ' ' + creationDate + ' ' + task
@@ -1251,6 +1550,7 @@ class taskManager(wx.Frame):
 			self.Refresh()
 
 	def showEditTasksDialog (self, todoTasksTask = '', todoTasksDetails = ()):
+		#print ("%%%%%%%% showEditTasksDialog: ", todoTasksDetails)
 		self.newTaskDialog = editTaskDialog(self, todoTasksTask, todoTasksDetails)
 		self.newTaskDialog.ShowModal()
 		#print ("Got new task: ", self.newtodoTasksTask[list(self.newtodoTasksTask.keys())[0]])
@@ -1268,9 +1568,9 @@ class taskManager(wx.Frame):
 
 		if self.newtodoTasksTask != {}:
 			key = list(self.newtodoTasksTask.keys())[0]
+			#print ("~~~ key = ", key, "self.selectedTask = ", self.selectedTask)
+			#print ("~~~ self.todoTasksTask = ", self.todoTasksTask)
 			if self.newtodoTasksTask[key] != self.todoTasksTask[self.selectedTask]:
-				#no change happened, including the task creation date
-				#print ("%%% Got OK for edit but task remains same.")
 				(hasError, completed, completionDate, allCompleted,
 					priority, creationDate, dueDate,
 					recurrenceCount, recurrenceUnit, 
@@ -1311,10 +1611,10 @@ class taskManager(wx.Frame):
 	#endclass
 
 def TaskManagerCoreEntryPoint ():
-	ieFile = ''
+	todoFile = ''
 	if len(sys.argv) > 1:
-		ieFile = sys.argv[1]
-	print ("ieFile = ", ieFile)
+		todoFile = sys.argv[1]
+	#print ("todoFile = ", todoFile)
 
 	#if args.debugEnabled == True:
 	#	app = wx.App(redirect=True)
@@ -1324,7 +1624,7 @@ def TaskManagerCoreEntryPoint ():
 	app = wx.App(redirect=False)
 
 	frame = taskManager(title="TaskManager", 
-			todoFile=ieFile)
+			todoFile=todoFile)
 	frame.SetIcon(wx.Icon("./task.ico"))
 	frame.Show()
 	#wx.lib.inspection.InspectionTool().Show()
