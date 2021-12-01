@@ -1,8 +1,10 @@
 Traceback (most recent call last):
-  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1704, in editTaskButtonHandler
-    self.showEditTasksDialog(self.selectedTask, self.todoTasksTask[self.selectedTask])
-  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1649, in showEditTasksDialog
-    self.newTaskDialog = editTaskDialog(self, todoTasksTask, todoTasksDetails)
-  File "/home/oreo/Git/TaskManager/taskmgr.py", line 849, in __init__
-    self.datePicker.SetValue(wx.DateTime(int(dList[2]), int(dList[1])-1, int(dList[0])))
-IndexError: list index out of range
+  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1937, in <module>
+    TaskManagerCoreEntryPoint()
+  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1928, in TaskManagerCoreEntryPoint
+    frame = taskManager(title="TaskManager",
+  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1235, in __init__
+    self.Bind(wx.EVT_MENU, self.menuNewTask, self.newTask)
+  File "/usr/local/lib/python3.9/dist-packages/wx/core.py", line 1455, in _EvtHandler_Bind
+    assert callable(handler) or handler is None
+AssertionError
