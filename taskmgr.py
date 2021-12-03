@@ -40,7 +40,7 @@ _WMY = {'Day': 'd', 'Week': 'w', 'Month': 'm', 'Year': 'y'}
 
 #_myMYMap = {'m': 'Month', 'y': 'Year'}
 
-_DEBUG_ENABLE = 2
+_DEBUG_ENABLE = 3
 
 def _DEBUG2 (*args):
 	if _DEBUG_ENABLE == 2:
@@ -613,8 +613,8 @@ class todo ():
 										recurrenceCount, recurrenceUnit, recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit,
 										contexts, projects)
 
-			print ("class todo: task = ", task, " length = ", len(task))
-			print ("\thasError = ", hasError)
+			#print ("class todo: task = ", task, " length = ", len(task))
+			#print ("\thasError = ", hasError)
 			#print ("\tcompleted =", completed)
 			#print ("\tcompletionDate =", completionDate)
 			#print ("\tpriority = ", priority)
@@ -1501,22 +1501,36 @@ class taskManager(wx.Frame):
 								completionStatus = 'TOMORROW'
 							nextDueDate = dueDate
 						elif completed and not allCompleted:
-							completionStatus = 'Scheduled'
 							dueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 							nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+							print ("AAA. task = ", task)
+							print ("AAA. dueDate = ", dueDate, "nextDueDate = ", nextDueDate)
+							diff = _dateDifference(dueDate, _makeDateForTodo(time.asctime()))
+							dueDateComingSoon = (diff <= howSoonIsSoon) and not todayIsPastDueDate
+							print ("AAA. diff = ", diff, "dueDateComingSoon = ", dueDateComingSoon)
+							if dueDateComingSoon:
+								completionStatus = 'Coming up'
+							else:
+								completionStatus = 'Scheduled'
 						elif not completed and not allCompleted and todayIsPastDueDate:
 							completionStatus = 'Missed last'
 							#print ('%%%% Missed last')
 							nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 						elif not allCompleted:
-							#print ("X. dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
-							completionStatus = 'Scheduled'
-							#print ('%%%% 1 Scheduled')
 							nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+							diff = _dateDifference(dueDate, _makeDateForTodo(time.asctime()))
+							dueDateComingSoon = (diff <= howSoonIsSoon) and not todayIsPastDueDate
+							print ("X. task = ", task)
+							print ("X. dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
+							if dueDateComingSoon:
+								completionStatus = 'Coming up'
+							else:
+								completionStatus = 'Scheduled'
+							#print ('%%%% 1 Scheduled')
 					else: #non-recurring and has due date
 						if not completed and not allCompleted and (dueDateIsToday or dueDateIsTomorrow):
 							if dueDateIsToday:
@@ -1576,16 +1590,16 @@ class taskManager(wx.Frame):
 		index = 0
 		task = ''
 		for key in sorted(sortedDueDateTasks.keys()):
-			_DEBUG1("sortedDueDateTasks key = ", key)
+			#_DEBUG1("sortedDueDateTasks key = ", key)
 			(task, priority, completionStatus, nextDueDate) = sortedDueDateTasks[key]
-			print ("self.searchString = ", self.searchString)
+			#print ("self.searchString = ", self.searchString)
 			searchSubStringList = self.searchString.split()
 			searchStringMatch = False
 			for searchSubString in searchSubStringList:
 				if task.find(searchSubString) >= 0:
 					searchStringMatch = True
 					break
-			print ("\n %%% Task: ", task, " searchStringMatch = ", searchStringMatch)
+			#print ("\n %%% Task: ", task, " searchStringMatch = ", searchStringMatch)
 			if searchStringMatch or self.searchString == '':
 				self.taskList.InsertItem(index, key.strip())
 				self.taskList.SetItem(index, 1, task)
