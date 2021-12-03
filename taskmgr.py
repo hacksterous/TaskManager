@@ -1511,7 +1511,7 @@ class taskManager(wx.Frame):
 							#print ('%%%% Missed last')
 							nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
-						elif and not allCompleted:
+						elif not allCompleted:
 							#print ("X. dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
 							completionStatus = 'Scheduled'
 							#print ('%%%% 1 Scheduled')
