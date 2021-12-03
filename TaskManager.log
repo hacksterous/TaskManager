@@ -1,10 +1,6 @@
 Traceback (most recent call last):
-  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1937, in <module>
-    TaskManagerCoreEntryPoint()
-  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1928, in TaskManagerCoreEntryPoint
-    frame = taskManager(title="TaskManager",
-  File "/home/oreo/Git/TaskManager/taskmgr.py", line 1235, in __init__
-    self.Bind(wx.EVT_MENU, self.menuNewTask, self.newTask)
-  File "/usr/local/lib/python3.9/dist-packages/wx/core.py", line 1455, in _EvtHandler_Bind
-    assert callable(handler) or handler is None
-AssertionError
+  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1679, in searchBarHandler
+    self.populateTasks()
+  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1374, in populateTasks
+    self.projectList.Delete(self.projectList.GetTopItem())
+wx._core.wxAssertionError: C++ assertion ""pos < GetCount()"" failed at /tmp/pip-install-v3v3eqpu/wxpython_c4048574516d4b5baaebcad90cdc3b9e/ext/wxWidgets/src/common/ctrlsub.cpp(108) in Delete(): invalid index

@@ -1,0 +1,22 @@
+2021-11-02 Task with creation date and no due date nor recurrence
+(A) Task with Priority (A) and no due date
+(D) 2021-11-28 Task with Priority (D) and creation date (not shown) but no due date
+(D) 2021-11-02 Recurring task Type 2 (D) rec:1-mon-y
+x Completed task with no due date, creation date or completion date
+x 2021-11-29 2021-11-29 Completed task with completion and creation date but no due date
+x (B) 2021-11-29 2021-11-29 Completed task with priority, completion and creation date
+x (B) 2021-11-29 2021-11-29 Completed task with priority, due date, completion and creation date due:2021-11-29
+(C) 2021-11-29 Pending task with priority, due date, creation date due:2021-12-19
+(F) 2021-11-02 Recurring task with priority and due date due:2021-12-19 rec:1m
+(E) 2021-11-20 Recurring task with recurrence but no due date; creation date is used to calculate recurrence rec:1m
+(A) 2021-11-02 Recurring task Type 2 with priority, due date (ignored, created from recurrence) due:2021-12-19 rec:1-mon-y
+(D) 2021-11-02 Recurring task Type 2 with priority (D) but no due date (created from recurrence specs.) rec:1-mon-y
+(A) 2021-11-02 Recurring task Type 2 (A) due:2021-12-19 rec:1-tue-m
+(A) 2021-11-02 Recurring task Type 2 With Project and Context Tags (A) due:2021-12-19 rec:1-tue-m @tag @context +MyProject +TaskManagerTest
+Task with no due date, no creation date and no due date nor recurrence X
+Task repeating every twenty days rec:20-day-m
+(A) 2021-11-1 Recurring task every 3rd Wed due:2021-12-15 rec:3-wed-m
+(A) 2021-11-1 Another Recurring task every 2nd Fri due:2021-12-15 rec:2-fri-m
+A Recur. Type 2 task with a due date in the past occurring on first Tue of every month due:2021-10-1 rec:1-tue-m
+A task with due date in the past due:2021-10-1
+
