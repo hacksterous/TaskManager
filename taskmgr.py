@@ -7,7 +7,6 @@
 
 import wx
 import os
-import argparse
 from os import path
 import sys
 import traceback
