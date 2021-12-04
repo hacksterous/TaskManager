@@ -1,5 +1,5 @@
 # TaskManager
-A simple task manager based on the [todo.txt](https://github.com/todotxt/todo.txt) format.
+A simple task manager based on the [todo.txt](https://github.com/todotxt/todo.txt) format using [wxPython](https://wxpython.org/).
 
 ![](https://github.com/todotxt/todo.txt/raw/master/description.svg)
 It makes the following additions:
