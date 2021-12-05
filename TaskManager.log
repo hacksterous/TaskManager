@@ -1,6 +1,6 @@
 Traceback (most recent call last):
-  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1679, in searchBarHandler
-    self.populateTasks()
-  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1374, in populateTasks
-    self.projectList.Delete(self.projectList.GetTopItem())
-wx._core.wxAssertionError: C++ assertion ""pos < GetCount()"" failed at /tmp/pip-install-v3v3eqpu/wxpython_c4048574516d4b5baaebcad90cdc3b9e/ext/wxWidgets/src/common/ctrlsub.cpp(108) in Delete(): invalid index
+  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 2051, in menuDeleteTaskHandler
+    text = '##-'+self.makeTodoLine(dd)
+  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1869, in makeTodoLine
+    recurrenceType2Unit, contexts, projects) = self.todoTasksTask[task]
+KeyError: 'B'

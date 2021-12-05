@@ -385,7 +385,7 @@ class todo ():
 		self.todoTasksTask = {}
 		self.todoTasksDueDate = {}
 		self.comments = []
-		print ("todo: init - self.todofile = ", self.todoFile)
+		#print ("todo: init - self.todofile = ", self.todoFile)
 
 		try:
 			f = open(self.todoFile, mode='r', encoding='utf-8')
@@ -1379,6 +1379,8 @@ class taskManager(wx.Frame):
 				self.contextList.Delete(self.contextList.GetTopItem())
 
 		sortedDueDateTasks = {}
+		
+		print ("populateTasks: todoTasksDueDate dict is : ", self.todoTasksDueDate)
 		for key in self.todoTasksDueDate.keys():
 			_DEBUG1(" dueDate keys: ", key)
 			task = self.todoTasksDueDate[key]
@@ -1444,7 +1446,7 @@ class taskManager(wx.Frame):
 						dueDate = _nextDate(creationDate, recurrenceCount, recurrenceUnit)
 					elif recurrenceCount != '':
 						dueDateIsPast = _firstTodoDateIsEarlier(dueDate, today)
-						print (" === found Recurring Type 1 with dueDate = ", dueDate)
+						_DEBUG (" === found Recurring Type 1 with dueDate = ", dueDate)
 						#if due date is past
 						#iterate until due date is on or later than today
 						iterCount = 0
@@ -1504,11 +1506,11 @@ class taskManager(wx.Frame):
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 							nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
-							print ("AAA. task = ", task)
-							print ("AAA. dueDate = ", dueDate, "nextDueDate = ", nextDueDate)
+							_DEBUG2 ("AAA. task = ", task)
+							_DEBUG2 ("AAA. dueDate = ", dueDate, "nextDueDate = ", nextDueDate)
 							diff = _dateDifference(dueDate, _makeDateForTodo(time.asctime()))
 							dueDateComingSoon = (diff <= howSoonIsSoon) and not todayIsPastDueDate
-							print ("AAA. diff = ", diff, "dueDateComingSoon = ", dueDateComingSoon)
+							_DEBUG2 ("AAA. diff = ", diff, "dueDateComingSoon = ", dueDateComingSoon)
 							if dueDateComingSoon:
 								completionStatus = 'Coming up'
 							else:
@@ -1523,8 +1525,8 @@ class taskManager(wx.Frame):
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 							diff = _dateDifference(dueDate, _makeDateForTodo(time.asctime()))
 							dueDateComingSoon = (diff <= howSoonIsSoon) and not todayIsPastDueDate
-							print ("X. task = ", task)
-							print ("X. dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
+							_DEBUG2 ("X. task = ", task)
+							_DEBUG2 ("X. dueDate = ", dueDate, "nextDueDate = ", nextDueDate, "isRecurring = ", isRecurring, "hasDueDate = ", hasDueDate)
 							if dueDateComingSoon:
 								completionStatus = 'Coming up'
 							else:
@@ -1670,9 +1672,9 @@ class taskManager(wx.Frame):
 	def clearSearchHandler (self, event=None):
 		self.searchTasksBar.Clear()
 		self.searchString = ''
-		print ("clearSearchHandler calling populateTasks", )
+		#print ("clearSearchHandler calling populateTasks", )
 		self.populateTasks()
-		print ("clearSearchHandler returned from populateTasks")
+		#print ("clearSearchHandler returned from populateTasks")
 
 	def showButtonsHandler (self, event=None):
 		if self.showButtons == False:
@@ -1975,9 +1977,11 @@ class taskManager(wx.Frame):
 
 		if self.newtodoTasksTask != {}:
 			if editMode:
-				(dueDate, *others) = self.todoTasksTask[self.selectedTask]
 				#delete the old key
-				del self.todoTasksDueDate[dueDate]
+				for dd in self.todoTasksDueDate.keys():
+					if self.todoTasksDueDate[dd] == self.selectedTask:
+						del self.todoTasksDueDate[dd]
+						break
 				del self.todoTasksTask[self.selectedTask]
 				
 			key = list(self.newtodoTasksTask.keys())[0]
@@ -1991,9 +1995,9 @@ class taskManager(wx.Frame):
 			originalKey = key
 			if key in self.todoTasksDueDate.keys():
 				originalKey = key
-				key += ' ' #append a space
+				key += '$' #append a uniquifying char
 				while key in self.todoTasksDueDate.keys():
-					key += ' '
+					key += '$'
 			self.todoTasksDueDate[key] = self.newTodoTasksDueDate[originalKey]
 
 			self.newtodoTasksTask = {}
@@ -2024,7 +2028,7 @@ class taskManager(wx.Frame):
 		dlg = wx.MessageDialog (self, 
 			'Are you sure want to delete '+str(selectedItemCount)+(' task.' if selectedItemCount == 1 else ' tasks.'), 
 			caption="Confirm Task Delete", style = wx.OK | wx.CANCEL).ShowModal()
-		print ("-- dlg returned ", dlg, " ... dlg == wx.ID_OK = ", dlg == wx.ID_OK)
+		#print ("-- dlg returned ", dlg, " ... dlg == wx.ID_OK = ", dlg == wx.ID_OK)
 		if dlg == wx.ID_OK:
 			selectedTasksList = []
 			index = -1
@@ -2036,15 +2040,23 @@ class taskManager(wx.Frame):
 					break
 				else:
 					selectedTasksList.append(self.taskList.GetItemText(index, 1))
-			#print ("completeTaskButtonHandler: selected task list: ", selectedTasksList)
 			if selectedTasksList != []:
+				#print ("menuDeleteTaskHandler: before delete loop, todoTasksTask is ", self.todoTasksTask)
 				for task in selectedTasksList:
-					(dueDate, *others) = self.todoTasksTask[task]
-					text = '##-'+self.makeTodoLine(dueDate)
-					del self.todoTasksDueDate[dueDate]
+					print ("task to delete: ", task)
+					#print ("dueDate for task to delete: ", dueDate, "len of dueDate", len(dueDate))
+					for dd in self.todoTasksDueDate.keys():
+						if self.todoTasksDueDate[dd] == task:
+							text = '##-'+self.makeTodoLine(dd)
+							self.todoFileComments.append(text)
+							del self.todoTasksDueDate[dd]
+							break
 					del self.todoTasksTask[task]
-					self.todoFileComments.append(text)
-			#print ("Deleted tasks are: ", selectedTasksList)
+
+					print ("\nAdded ", text, " to comments.")
+					
+			print ("Deleted tasks are: ", selectedTasksList)
+			print ("After deletion todoTasksDueDate dict is : ", self.todoTasksDueDate)
 			self.taskContentsDirty = True
 			self.populateTasks(skipTagsRedraw=True)
 		#endif
