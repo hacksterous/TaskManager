@@ -1,6 +1,6 @@
 Traceback (most recent call last):
-  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 2051, in menuDeleteTaskHandler
-    text = '##-'+self.makeTodoLine(dd)
-  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1869, in makeTodoLine
-    recurrenceType2Unit, contexts, projects) = self.todoTasksTask[task]
-KeyError: 'B'
+  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1673, in itemDeselectedHandler
+    self.taskSelectedHandler()
+  File "/home/oreo/Git/TaskManager/./taskmgr.py", line 1631, in taskSelectedHandler
+    index = event.GetIndex()
+AttributeError: 'NoneType' object has no attribute 'GetIndex'

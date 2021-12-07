@@ -13,32 +13,27 @@ import traceback
 import re
 import time
 import wx.adv
-#import wx.lib.inspection
+import threading
 
 _daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-
 _months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
 			'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-
 _MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
 			'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 _WMYs = {'Days': 'd', 'Weeks': 'w', 'Months': 'm', 'Years': 'y'}
-
 _my = ['m', 'y']
 _wmy = ['d', 'w', 'm', 'y']
-
 _days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-
 _weekdays = { 'Sunday': 'sun', 'Monday': 'mon', 'Tuesday': 'tue', 'Wednesday': 'wed', 
 				'Thursday': 'thu', 'Friday': 'fri', 'Saturday': 'sat'}
-
 _wds = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'day']
-
 _WMY = {'Day': 'd', 'Week': 'w', 'Month': 'm', 'Year': 'y'}
-
-#_myMYMap = {'m': 'Month', 'y': 'Year'}
-
+_recurSpanUnitList = ['Days', 'Weeks', 'Months', 'Years']
+_priorityList = ['None', '(A)', '(B)', '(C)', '(D)', '(E)', '(F)']
+_recurrenceTypeList = ['None', 'Span', 'Day', 'Last day']
+_recurDayUnitList = ['Month', 'Year']
+_recurDayList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Day']
+		
 _DEBUG_ENABLE = 3
 
 def _DEBUG2 (*args):
@@ -315,8 +310,8 @@ def _nextDate(todoDate, recurrenceCount = '',
 		if i+monthCount >= 12:
 			yyyy = str(y+1)
 
-		newmmStr = str(((i+monthCount) % 12) + 1)
-		nextDate = yyyy+'-'+newmmStr+'-'+dd
+		monthCount = ((i+monthCount) % 12) + 1
+		nextDate = yyyy+'-'+(str(monthCount) if monthCount > 9 else '0'+str(monthCount))+'-'+dd
 
 	elif recurrenceUnit == 'y':
 		recurrenceCountInt = int(recurrenceCount)
@@ -723,12 +718,6 @@ class editTaskDialog (wx.Dialog):
 		wx.Dialog.__init__(self, parent, title="Task Editor", size=(840,525))
 		self.Bind(wx.EVT_CLOSE, self.exit)
 
-		priorityList = ['None', '(A)', '(B)', '(C)', '(D)', '(E)', '(F)']
-		recurrenceTypeList = ['None', 'Span', 'Day', 'Last day']
-		recurSpanUnitList = ['Days', 'Weeks', 'Months', 'Years']
-		recurDayUnitList = ['Month', 'Year']
-		recurDayList = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Day']
-		
 		mainSizer = wx.GridBagSizer(vgap=10, hgap=10)
 
 		taskLabel = wx.StaticText(self, label="Task", style=wx.ALIGN_RIGHT)
@@ -744,7 +733,7 @@ class editTaskDialog (wx.Dialog):
 		self.contextText.SetHint("Contexts/tags associated with this task.")
 
 		priorityLabel = wx.StaticText(self, label="Priority")
-		self.priorityText = wx.ComboBox(self, -1, 'None', choices=priorityList, style=wx.CB_READONLY)
+		self.priorityText = wx.ComboBox(self, -1, 'None', choices=_priorityList, style=wx.CB_READONLY)
 
 		self.noDueDateCheckBox = wx.CheckBox(self, label='No Due Date', size=(-1, 20))
 		self.noDueDateCheckBox.Bind(wx.EVT_CHECKBOX, self.noDueDateCheckBoxHandler)		
@@ -755,7 +744,7 @@ class editTaskDialog (wx.Dialog):
 								style = wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY | wx.adv.DP_ALLOWNONE)
 
 		recurrenceRadioBoxLabel = wx.StaticText(self, label="Recurrence Type")
-		self.recurrenceRadioBox = wx.RadioBox(self, label='', choices=recurrenceTypeList, style=wx.NO_BORDER)
+		self.recurrenceRadioBox = wx.RadioBox(self, label='', choices=_recurrenceTypeList, style=wx.NO_BORDER)
 		self.recurrenceRadioBox.Bind(wx.EVT_RADIOBOX,self.recurrenceRadioBoxHandler)
 
 		self.recurDetailsLabel = wx.StaticText(self, label='Occurs on the')
@@ -764,7 +753,7 @@ class editTaskDialog (wx.Dialog):
 		recurDetailsSizerA = wx.BoxSizer(wx.HORIZONTAL)
 		self.recurSpanText = wx.StaticText(self, label='Occurs Every ')
 		self.recurSpanCount = wx.TextCtrl(self, value='1', size=(40, -1))
-		self.recurSpanUnit = wx.ComboBox(self, -1, 'Months', choices=recurSpanUnitList, style=wx.CB_READONLY)
+		self.recurSpanUnit = wx.ComboBox(self, -1, 'Months', choices=_recurSpanUnitList, style=wx.CB_READONLY)
 		self.recurSpanText.Disable()
 		self.recurSpanCount.Disable()
 		self.recurSpanUnit.Disable()
@@ -777,9 +766,9 @@ class editTaskDialog (wx.Dialog):
 		self.recurDayNumber = wx.TextCtrl(self, value='1', size=(40, -1))
 		self.recurDayNumber.Bind (wx.EVT_KEY_UP, self.recurDayNumberHandler)
 		self.recurDayNumAdjectiveText = wx.StaticText(self, label='st')
-		self.recurDay = wx.ComboBox(self, -1, 'Sunday', choices=recurDayList, style=wx.CB_READONLY)
+		self.recurDay = wx.ComboBox(self, -1, 'Sunday', choices=_recurDayList, style=wx.CB_READONLY)
 		self.recurDayText = wx.StaticText(self, label='of every')
-		self.recurDayUnit = wx.ComboBox(self, -1, 'Month', choices=recurDayUnitList, style=wx.CB_READONLY)
+		self.recurDayUnit = wx.ComboBox(self, -1, 'Month', choices=_recurDayUnitList, style=wx.CB_READONLY)
 		self.recurDayNumber.Disable()
 		self.recurDayNumAdjectiveText.Disable()
 		self.recurDay.Disable()
@@ -911,8 +900,8 @@ class editTaskDialog (wx.Dialog):
 				for e in projects:
 					self.projectText.AppendText('+'+e+' ')
 
-				if priority in priorityList:
-					self.priorityText.SetSelection(priorityList.index(priority))
+				if priority in _priorityList:
+					self.priorityText.SetSelection(_priorityList.index(priority))
 				else:
 					self.priorityText.SetSelection(0)
 
@@ -939,7 +928,7 @@ class editTaskDialog (wx.Dialog):
 				if recurrenceCount != '' and recurrenceType2Nth == '':
 					self.recurSpanCount.Clear()
 					self.recurSpanCount.WriteText(recurrenceCount)
-					print ("recurSpanUnit is set to ", _wmy.index(recurrenceUnit))
+					#print ("recurSpanUnit is set to ", _wmy.index(recurrenceUnit))
 					self.recurSpanUnit.SetSelection(_wmy.index(recurrenceUnit))
 				elif recurrenceCount == '' and recurrenceType2Nth != '':
 					if recurrenceType2Nth not in 'lL':
@@ -1216,7 +1205,6 @@ class taskManager(wx.Frame):
 		self.editMenu = wx.Menu()
 		self.optionsMenu = wx.Menu()
 		self.helpMenu = wx.Menu()
-
 		self.menuNewTask = self.fileMenu.Append(-1, "New Task", "Create new task")
 		self.menuEditTask = self.fileMenu.Append(-1, "Edit Task", "Edit an existing task")
 		self.menuDeleteTask = self.fileMenu.Append(-1, "Delete Task", "Delete task")
@@ -1225,12 +1213,9 @@ class taskManager(wx.Frame):
 		self.menuSave = self.fileMenu.Append(-1, "&Save...\tCtrl+S", "Save the current file to disk")
 		self.fileMenu.AppendSeparator()
 		self.menuExit = self.fileMenu.Append(-1,"&Quit\tCtrl+Q","Exit TaskManager")
-
 		self.menuQuickButtons = self.editMenu.Append(-1,"Hide Quick Buttons \tCtrl+F"," Show/Hide search and searchTasks")
 		self.menuClearSearch = self.editMenu.Append(-1,"Clear Search"," Clear Search")
-
 		self.menuFont = self.optionsMenu.Append(wx.ID_SELECT_FONT,"&Font...\tCtrl+T"," Change Font")
-
 		self.menuAbout = self.helpMenu.Append(wx.ID_ABOUT, "&About", "Information about TaskManager")
 
 		#Create the menubar.
@@ -1240,7 +1225,6 @@ class taskManager(wx.Frame):
 		self.menuBar.Append(self.optionsMenu,"&Options") 
 		self.menuBar.Append(self.helpMenu,"&Help") 
 		self.SetMenuBar(self.menuBar)  # Adding the MenuBar to the Frame content.
-
 		#Menu events
 		self.Bind(wx.EVT_MENU, self.newTaskButtonHandler, self.menuNewTask)
 		self.Bind(wx.EVT_MENU, self.editTaskButtonHandler, self.menuEditTask)
@@ -1252,23 +1236,20 @@ class taskManager(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.showButtonsHandler, self.menuQuickButtons)
 		self.Bind(wx.EVT_MENU, self.clearSearchHandler, self.menuClearSearch)
 		self.Bind(wx.EVT_MENU, self.helpAbout, self.menuAbout)
-
+		#sizers
 		self.sizer = wx.BoxSizer(wx.VERTICAL) #contains vertically stacked sizerTweedleDum and sizerTweedleDee
 		self.sizerTweedleDum = wx.BoxSizer(wx.HORIZONTAL) #contains horizontally stacked sizers Left, Middle and Right
 		self.sizerLeft = wx.BoxSizer(wx.VERTICAL) #contains task label and tasks
 		self.sizerRight = wx.BoxSizer(wx.VERTICAL) #contains contexts and projects
 		self.sizerTweedleDee = wx.BoxSizer(wx.HORIZONTAL)
-
 		self.taskList = wx.ListCtrl(self, name="taskList", style=wx.LC_REPORT)
 		self.taskList.Bind(wx.EVT_LIST_ITEM_SELECTED, self.taskSelectedHandler)
 		self.taskList.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.itemDeselectedHandler)
-
 		self.taskList.InsertColumn(0, "Due Date", wx.LIST_FORMAT_CENTRE)
 		self.taskList.InsertColumn(1, "Tasks", wx.LIST_FORMAT_CENTRE)
 		self.taskList.InsertColumn(2, "Priority", wx.LIST_FORMAT_CENTRE)
 		self.taskList.InsertColumn(3, "Completion Status", wx.LIST_FORMAT_CENTRE)
 		self.taskList.InsertColumn(4, "Next Due", wx.LIST_FORMAT_CENTRE)
-
 		self.projectList = wx.ListBox(self, name="projectList", style=wx.LB_MULTIPLE)
 		self.projectList.Bind(wx.EVT_LISTBOX, self.projectListBoxHandler)		
 		self.projectLabel = wx.StaticText(self, label="Project Tags")
@@ -1279,7 +1260,6 @@ class taskManager(wx.Frame):
 		self.contextLabel = wx.StaticText(self, label="Context Tags")
 		#self.contextLabel.SetFont(wx.Font(14, family=wx.FONTFAMILY_DEFAULT, style = 0, weight = 90, 
 		#			  underline = False, faceName ="", encoding = wx.FONTENCODING_DEFAULT))
-
 		self.newTaskButton = wx.Button(self, -1, "New Task", style=wx.RAISED_BORDER)
 		self.newTaskButton.Bind (wx.EVT_BUTTON, self.newTaskButtonHandler)
 		self.editTaskButton = wx.Button(self, -1, "Edit Task", style=wx.RAISED_BORDER)
@@ -1296,17 +1276,13 @@ class taskManager(wx.Frame):
 		self.showCompletedTasksCheckBox = wx.CheckBox(self, label="Show Completed Tasks", size=(-1, 27))
 		self.showCompletedTasksCheckBox.Bind(wx.EVT_CHECKBOX, self.showCompletedTasksCheckBoxHandler)		
 		self.showCompletedTasksCheckBox.SetValue(False)
-
 		self.sizerLeft.Add(self.taskList, 200, wx.EXPAND)
-
 		self.sizerRight.Add(self.projectList, 100, wx.EXPAND)
 		self.sizerRight.Add(self.projectLabel, 1, wx.ALIGN_CENTER)
 		self.sizerRight.Add(self.contextList, 100, wx.EXPAND)
 		self.sizerRight.Add(self.contextLabel, 1, wx.ALIGN_CENTER)
-
 		self.sizerTweedleDum.Add(self.sizerLeft, 40, wx.EXPAND+wx.TOP)
 		self.sizerTweedleDum.Add(self.sizerRight, 10, wx.EXPAND+wx.TOP)
-
 		self.sizerTweedleDee.AddSpacer(10)
 		self.sizerTweedleDee.Add(self.newTaskButton, 0)
 		self.sizerTweedleDee.AddSpacer(10)
@@ -1321,25 +1297,31 @@ class taskManager(wx.Frame):
 		self.sizerTweedleDee.AddSpacer(20)
 		self.sizerTweedleDee.Add(self.clearTagsButton, 0)
 		self.sizerTweedleDee.AddSpacer(10)
-
 		self.sizer.AddSpacer(13)
 		self.sizer.Add(self.sizerTweedleDee, 1, wx.EXPAND+wx.BOTTOM)
 		self.sizer.Add(self.sizerTweedleDum, 100, wx.EXPAND+wx.TOP, border=12)
-
 		self.fontInformation = self.taskList.GetFont()
-
 		self.sizer.Layout()
 		self.sizer.Show(self.sizerTweedleDee)
 		self.sizer.Show(self.sizerTweedleDum)
-
 		#Layout sizers
 		self.SetSizeHints(1250,400)
 		self.SetSizer(self.sizer)
-
 		#status bar
 		self.statusbar = self.CreateStatusBar(1) # A Statusbar in the bottom of the window
 
+		self.setupTimer()
+
+	def setupTimer (self):
+		asctime = time.asctime()
+		match = re.match(r'^(.*?)\s(.*?)\s+(.*?)([0-9]{2}:[0-9]{2}:[0-9]{2})\s([0-9]{4})$', asctime) #'Tue Nov  2 20:01:51 2021'
+		if match:
+			nowSeconds = time.mktime(time.strptime(match.group(5)+'-'+match.group(2)+'-'+match.group(3)+' '+match.group(4), "%Y-%b-%d %H:%M:%S"))
+			midnightSeconds = time.mktime(time.strptime(match.group(5)+'-'+match.group(2)+'-'+match.group(3)+' 23:59:59', "%Y-%b-%d %H:%M:%S"))
+			threading.Timer(midnightSeconds - nowSeconds + 10, self.setupTimer).start() #9 seconds into the new day
+			#print ("nowSeconds = ", nowSeconds, "midnightSeconds = ", midnightSeconds)
 		self.openTodoFileAndSetStatus(self.todoFile)
+		
 
 	def openTodoFileAndSetStatus (self, fullFileName=''):
 		#print ("openTodoFileAndSetStatus: calling todoFileOpen with ", fullFileName)
@@ -1380,7 +1362,7 @@ class taskManager(wx.Frame):
 
 		sortedDueDateTasks = {}
 		
-		print ("populateTasks: todoTasksDueDate dict is : ", self.todoTasksDueDate)
+		#print ("populateTasks: todoTasksDueDate dict is : ", self.todoTasksDueDate)
 		for key in self.todoTasksDueDate.keys():
 			_DEBUG1(" dueDate keys: ", key)
 			task = self.todoTasksDueDate[key]
@@ -1648,17 +1630,37 @@ class taskManager(wx.Frame):
 	def taskSelectedHandler (self, event=None):
 		index = event.GetIndex()
 		#print ("selected task index is ", index)
+		#this is the last selected task - used for editing the task
 		self.selectedTask = self.taskList.GetItemText(index, 1)
-		*others, contexts, projects = self.todoTasksTask[self.selectedTask]
-		#print(self.selectedTask)
-		#print ("selected projects ", projects)
-		#print ("selected contexts ", contexts)
+		selectedTasksList = []
+		index = -1
+		while True:
+			index = self.taskList.GetNextItem(index,
+								wx.LIST_NEXT_ALL,
+								wx.LIST_STATE_SELECTED)
+			if index == -1:
+				break
+			else:
+				selectedTasksList.append(self.taskList.GetItemText(index, 1))
+		#print ("completeTaskButtonHandler: selected task list: ", selectedTasksList)
 		for e in range(0, self.projectList.GetCount()):
 			self.projectList.Deselect(e)
 
 		for e in range(0, self.contextList.GetCount()):
 			self.contextList.Deselect(e)
 
+		if selectedTasksList != []:
+			contexts = []
+			projects = []
+			for e in selectedTasksList:
+				*others, c, p = self.todoTasksTask[e]
+				contexts += c
+				projects += p
+		else:
+			return
+		#print(selectedTasksList)
+		#print ("selected projects ", projects)
+		#print ("selected contexts ", contexts)
 		for e in projects:
 			self.projectList.SetSelection(self.projectList.FindString('+'+e))
 
@@ -1668,6 +1670,7 @@ class taskManager(wx.Frame):
 	def itemDeselectedHandler (self, event=None):
 		#print ("deselected task index is ", event.GetIndex())
 		self.selectedTask = ''
+		self.taskSelectedHandler(event)
 
 	def clearSearchHandler (self, event=None):
 		self.searchTasksBar.Clear()
@@ -2043,7 +2046,7 @@ class taskManager(wx.Frame):
 			if selectedTasksList != []:
 				#print ("menuDeleteTaskHandler: before delete loop, todoTasksTask is ", self.todoTasksTask)
 				for task in selectedTasksList:
-					print ("task to delete: ", task)
+					#print ("task to delete: ", task)
 					#print ("dueDate for task to delete: ", dueDate, "len of dueDate", len(dueDate))
 					for dd in self.todoTasksDueDate.keys():
 						if self.todoTasksDueDate[dd] == task:
@@ -2053,10 +2056,10 @@ class taskManager(wx.Frame):
 							break
 					del self.todoTasksTask[task]
 
-					print ("\nAdded ", text, " to comments.")
+					#print ("\nAdded ", text, " to comments.")
 					
-			print ("Deleted tasks are: ", selectedTasksList)
-			print ("After deletion todoTasksDueDate dict is : ", self.todoTasksDueDate)
+			#print ("Deleted tasks are: ", selectedTasksList)
+			#print ("After deletion todoTasksDueDate dict is : ", self.todoTasksDueDate)
 			self.taskContentsDirty = True
 			self.populateTasks(skipTagsRedraw=True)
 		#endif
