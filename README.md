@@ -1,8 +1,12 @@
 # TaskManager
-A simple task manager based on the [todo.txt](https://github.com/todotxt/todo.txt) format using [wxPython](https://wxpython.org/).
+TaskManager is a simple todo list organizer/manager based on the [todo.txt](https://github.com/todotxt/todo.txt) format using [wxPython](https://wxpython.org/).
+
+![TaskManager main screen](https://github.com/hacksterous/TaskManager/blob/main/TaskManager-1.png "TaskManager Main Screen")
+
+![TaskManager adding a new task](https://github.com/hacksterous/TaskManager/blob/main/TaskManager-2.png "TaskManager Add New Task")
 
 ![](https://github.com/todotxt/todo.txt/raw/master/description.svg)
-It makes the following additions:
+TaskManager makes the following additions to the todo.txt syntax:
 
 1. Recurring tasks that occur on a fixed day every week/month/year are specified as
    D-[mon|tue|wed|thu|fri|sat|sun|day]-[m|y]. 
