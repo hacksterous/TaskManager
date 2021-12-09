@@ -1245,6 +1245,7 @@ class taskManager(wx.Frame):
 		self.taskList = wx.ListCtrl(self, name="taskList", style=wx.LC_REPORT)
 		self.taskList.Bind(wx.EVT_LIST_ITEM_SELECTED, self.taskSelectedHandler)
 		self.taskList.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.itemDeselectedHandler)
+		self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.rightClickHandler)
 		self.taskList.InsertColumn(0, "Due Date", wx.LIST_FORMAT_CENTRE)
 		self.taskList.InsertColumn(1, "Tasks", wx.LIST_FORMAT_CENTRE)
 		self.taskList.InsertColumn(2, "Priority", wx.LIST_FORMAT_CENTRE)
@@ -1484,14 +1485,15 @@ class taskManager(wx.Frame):
 								completionStatus = 'TOMORROW'
 							nextDueDate = dueDate
 						elif completed and not allCompleted:
-							dueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
-								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
+							if todayIsPastDueDate:
+								dueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
+									recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
 							nextDueDate = _nextDate(dueDate, recurrenceCount, recurrenceUnit, 
 								recurrenceType2Nth, recurrenceType2Day, recurrenceType2Unit)
-							_DEBUG2 ("AAA. task = ", task)
-							_DEBUG2 ("AAA. dueDate = ", dueDate, "nextDueDate = ", nextDueDate)
 							diff = _dateDifference(dueDate, _makeDateForTodo(time.asctime()))
 							dueDateComingSoon = (diff <= howSoonIsSoon) and not todayIsPastDueDate
+							_DEBUG2 ("AAA. task = ", task)
+							_DEBUG2 ("AAA. dueDate = ", dueDate, "nextDueDate = ", nextDueDate)
 							_DEBUG2 ("AAA. diff = ", diff, "dueDateComingSoon = ", dueDateComingSoon)
 							if dueDateComingSoon:
 								completionStatus = 'Coming up'
@@ -1940,6 +1942,33 @@ class taskManager(wx.Frame):
 			dlg.ShowModal()
 			print("Error: File could not be saved.")
 			return False
+
+	def rightClickHandler(self, event):
+		# Get TreeItemData
+		item = event.GetIndex()
+		itemData = self.taskList.GetItemText(item, 1)
+		# Create menu
+		popupmenu = wx.Menu()
+		entries = ['Complete Task', 'Delete Task', 'Edit Task']
+		for entry in entries:
+		    menuItem = popupmenu.Append(-1, entry)
+		    wrapper = lambda event: self.rightClickMenuHandler(event)
+		    self.Bind(wx.EVT_MENU, wrapper, menuItem)
+		
+		# Show menu
+		self.PopupMenu(popupmenu, event.GetPoint())
+
+	def rightClickMenuHandler(self, event):
+		idSelected = event.GetId()
+		obj = event.GetEventObject()
+		label = obj.GetLabel(idSelected)
+
+		if label == 'Delete Task':
+			self.menuDeleteTaskHandler()
+		elif label == 'Edit Task':
+			self.editTaskButtonHandler()
+		elif label == 'Complete Task':
+			self.completeTaskButtonHandler()
 
 	def fileQuit(self, event=None):
 		self.fileSave()
