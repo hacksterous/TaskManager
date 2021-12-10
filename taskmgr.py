@@ -1311,7 +1311,9 @@ class taskManager(wx.Frame):
 		#status bar
 		self.statusbar = self.CreateStatusBar(1) # A Statusbar in the bottom of the window
 
-		self.setupTimer()
+		self.openTodoFileAndSetStatus(self.todoFile)
+		if self.todo.fileError == False:
+			self.setupTimer()
 
 	def setupTimer (self):
 		asctime = time.asctime()
@@ -1321,8 +1323,7 @@ class taskManager(wx.Frame):
 			midnightSeconds = time.mktime(time.strptime(match.group(5)+'-'+match.group(2)+'-'+match.group(3)+' 23:59:59', "%Y-%b-%d %H:%M:%S"))
 			threading.Timer(midnightSeconds - nowSeconds + 10, self.setupTimer).start() #9 seconds into the new day
 			#print ("nowSeconds = ", nowSeconds, "midnightSeconds = ", midnightSeconds)
-		self.openTodoFileAndSetStatus(self.todoFile)
-		
+			self.populateTasks()
 
 	def openTodoFileAndSetStatus (self, fullFileName=''):
 		#print ("openTodoFileAndSetStatus: calling todoFileOpen with ", fullFileName)
@@ -1820,7 +1821,6 @@ class taskManager(wx.Frame):
 
 			self.taskList.DeleteAllItems()
 			self.setTodoTasks()
-			self.populateTasks()
 
 		return self.todo.fileError
 
