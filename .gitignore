@@ -3,3 +3,4 @@
 __pycache__/taskmgr.cpython-39.pyc
 .todo.txt.swp
 taskmgr.spec
+*.bak
